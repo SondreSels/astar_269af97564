@@ -176,8 +176,25 @@ def get_direction(current, neighbor):
 def h(p1, p2):
 	x1, y1 = p1
 	x2, y2 = p2
-	return (abs(x1 - x2) + abs(y1 - y2)) * 100
-
+	x_diff = abs(x1 - x2)
+	y_diff = abs(y1 - y2)
+	x_cost = 0
+	x_speed = 500
+	for i in range(x_diff):
+		if x_speed > top_speed:
+			x_speed -= acceleration
+		else:
+			x_speed = top_speed
+		x_cost += x_speed
+	y_cost = 0
+	y_speed = 500
+	for i in range(y_diff):
+		if y_speed > top_speed:
+			y_speed -= acceleration
+		else:
+			y_speed = top_speed
+		y_cost += y_speed
+	return x_cost + y_cost
 	
 
 
@@ -268,13 +285,12 @@ def algorithm(draw, grid, start, end, robot, current_time):
 					neighbor.speed = speed
 					open_set.put((f_score[neighbor], count, neighbor))
 					open_set_hash.add(neighbor)
-					neighbor.make_open()
-					draw()
-					print(temp_g_score)
+					#neighbor.make_open()
+					#draw()
 
 
-		if current != start:
-			current.make_closed()
+		#if current != start:
+			#current.make_closed()
 
 	return False
 
@@ -324,7 +340,7 @@ def main(win, width):
 	ROWS = 50
 	grid = make_grid(ROWS, width)
 	# Percentage of barriers
-	percentage = 0
+	percentage = 0.1
 	# make barriers
 	for row in grid:
 		for spot in row:
@@ -332,7 +348,7 @@ def main(win, width):
 				if random.random() < percentage:
 					spot.make_barrier()
 	# Number of robots
-	num_robots = 10
+	num_robots = 5
 	Robots = []
 	# make robots
 	for i in range(num_robots):
