@@ -74,6 +74,12 @@ class Robot:
 	def get_direction(self):
 		return self.direction
 	
+	def update_blockage(self, grid):
+		current = 0
+		for i in range(len(self.path)):
+			grid[self.path[i][0]][self.path[i][1]].blocked = [current, current + grid[self.path[i][0]][self.path[i][1]].speed]
+			current += grid[self.path[i][0]][self.path[i][1]].speed
+	
 
 class Spot:
 	def __init__(self, row, col, width, total_rows):
@@ -86,6 +92,8 @@ class Spot:
 		self.width = width
 		self.total_rows = total_rows
 		self.direction = -1
+		self.blocked = [0,0]
+		self.speed = 500
 
 	def get_pos(self):
 		return self.row, self.col
@@ -168,21 +176,22 @@ def get_direction(current, neighbor):
 def h(p1, p2):
 	x1, y1 = p1
 	x2, y2 = p2
-	return abs(x1 - x2) + abs(y1 - y2)
+	return (abs(x1 - x2) + abs(y1 - y2)) * 100
 
 	
 
 
-def reconstruct_path(came_from, current, draw, robot):
+def reconstruct_path(came_from, current, draw, robot, grid):
 	robot_path = [current.get_pos()]
 	while current in came_from:
 		current = came_from[current]
 		robot_path.append(current.get_pos())
 		draw()
 	robot.assign_path(robot_path[::-1])
+	robot.update_blockage(grid)
 
 
-def algorithm(draw, grid, start, end, robot):
+def algorithm(draw, grid, start, end, robot, current_time):
 	count = 0
 	open_set = PriorityQueue()
 	open_set.put((0, count, start))
@@ -221,13 +230,14 @@ def algorithm(draw, grid, start, end, robot):
 					direction = SOUTH
 
 		if current == end:
-			reconstruct_path(came_from, end, draw, robot)
+			reconstruct_path(came_from, end, draw, robot, grid)
 			end.make_end()
 			return True
 
 		for neighbor in current.neighbors:
 			# Find the direction between the current node and the neighbor
 			neighbor_direction = -1
+			speed = current.speed
 			if current.row == neighbor.row:
 				# The neighbor is to the left or right
 				if current.col < neighbor.col:
@@ -241,9 +251,13 @@ def algorithm(draw, grid, start, end, robot):
 				else:
 					neighbor_direction = NORTH
 			if neighbor_direction == direction or direction == -1:
-				temp_g_score = g_score[current] + 1
+				if speed > top_speed:
+					speed -= acceleration
 			else:
-				temp_g_score = g_score[current] + 10
+				speed = 500
+			temp_g_score = g_score[current] + speed
+			if temp_g_score > neighbor.blocked[0] and temp_g_score < neighbor.blocked[1]:
+				temp_g_score = neighbor.blocked[1] + 500
 
 			if temp_g_score < g_score[neighbor]:
 				came_from[neighbor] = current
@@ -251,11 +265,13 @@ def algorithm(draw, grid, start, end, robot):
 				f_score[neighbor] = temp_g_score + h(neighbor.get_pos(), end.get_pos())
 				if neighbor not in open_set_hash:
 					count += 1
+					neighbor.speed = speed
 					open_set.put((f_score[neighbor], count, neighbor))
 					open_set_hash.add(neighbor)
 					neighbor.make_open()
+					draw()
+					print(temp_g_score)
 
-		draw()
 
 		if current != start:
 			current.make_closed()
@@ -361,6 +377,7 @@ def main(win, width):
 					for i in range(len(orders)):
 						min_distance = 100000
 						closest_robot = None
+						current_time = int(time.time() * 1000)
 						for robot in Robots:
 							if robot.path == []:
 								distance = h(robot.get_pos(), list(orders)[0].get_pos())
@@ -368,7 +385,7 @@ def main(win, width):
 									min_distance = distance
 									closest_robot = robot
 						if closest_robot != None:
-							algorithm(lambda: draw(win, grid, ROWS, width), grid, grid[closest_robot.row][closest_robot.col], list(orders)[0], closest_robot)
+							algorithm(lambda: draw(win, grid, ROWS, width), grid, grid[closest_robot.row][closest_robot.col], list(orders)[0], closest_robot, current_time)
 							# clear order from orders
 							orders.remove(list(orders)[0])
 					moving = True
