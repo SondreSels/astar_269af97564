@@ -77,7 +77,10 @@ class Robot:
 	def update_blockage(self, grid):
 		current = 0
 		for i in range(len(self.path)):
-			grid[self.path[i][0]][self.path[i][1]].blocked = [current, current + grid[self.path[i][0]][self.path[i][1]].speed]
+			if i == len(self.path) - 1:
+				grid[self.path[i][0]][self.path[i][1]].blocked = [current, 99999999999]
+			else:
+				grid[self.path[i][0]][self.path[i][1]].blocked = [current, current + grid[self.path[i][0]][self.path[i][1]].speed]
 			current += grid[self.path[i][0]][self.path[i][1]].speed
 	
 
@@ -340,7 +343,7 @@ def main(win, width):
 	ROWS = 50
 	grid = make_grid(ROWS, width)
 	# Percentage of barriers
-	percentage = 0.1
+	percentage = 0
 	# make barriers
 	for row in grid:
 		for spot in row:
@@ -348,7 +351,7 @@ def main(win, width):
 				if random.random() < percentage:
 					spot.make_barrier()
 	# Number of robots
-	num_robots = 5
+	num_robots = 10
 	Robots = []
 	# make robots
 	for i in range(num_robots):
