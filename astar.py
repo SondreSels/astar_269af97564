@@ -24,10 +24,23 @@ EAST = 1
 SOUTH = 2
 WEST = 3
 
+ROWS = 50
+
 acceleration = 100
 deceleration = 1
 top_speed = 100
 
+
+FullTrackShiftMS = 530
+
+speed = 500
+
+MoveTimesMS = [0, 500]
+for i in range(2,ROWS + 1):
+	if speed > top_speed:
+		speed -= acceleration
+	MoveTimesMS.append(MoveTimesMS[i-1] + speed)
+	
 
 class Robot:
 	def __init__(self, row, col, width, total_rows):
@@ -181,25 +194,12 @@ def h(p1, p2):
 	x2, y2 = p2
 	x_diff = abs(x1 - x2)
 	y_diff = abs(y1 - y2)
-	x_cost = 0
-	x_speed = 500
-	for i in range(x_diff):
-		if x_speed > top_speed:
-			x_speed -= acceleration
-		else:
-			x_speed = top_speed
-		x_cost += x_speed
-	y_cost = 0
-	y_speed = 500
-	for i in range(y_diff):
-		if y_speed > top_speed:
-			y_speed -= acceleration
-		else:
-			y_speed = top_speed
-		y_cost += y_speed
-	return x_cost + y_cost
-	
-
+	d = 0
+	d += MoveTimesMS[x_diff]
+	d += MoveTimesMS[y_diff]
+	if x1 != x2 and y1 != y2:
+		d += FullTrackShiftMS
+	return d
 
 def reconstruct_path(came_from, current, draw, robot, grid):
 	robot_path = [current.get_pos()]
@@ -253,7 +253,6 @@ def algorithm(draw, grid, start, end, robot, current_time):
 			reconstruct_path(came_from, end, draw, robot, grid)
 			end.make_end()
 			return True
-
 		for neighbor in current.neighbors:
 			# Find the direction between the current node and the neighbor
 			neighbor_direction = -1
@@ -288,12 +287,11 @@ def algorithm(draw, grid, start, end, robot, current_time):
 					neighbor.speed = speed
 					open_set.put((f_score[neighbor], count, neighbor))
 					open_set_hash.add(neighbor)
-					#neighbor.make_open()
-					#draw()
+		# 			neighbor.make_open()
+		# 			draw()
 
-
-		#if current != start:
-			#current.make_closed()
+		# if current != start:
+		# 	current.make_closed()
 
 	return False
 
@@ -340,7 +338,6 @@ def get_clicked_pos(pos, rows, width):
 
 
 def main(win, width):
-	ROWS = 50
 	grid = make_grid(ROWS, width)
 	# Percentage of barriers
 	percentage = 0
@@ -351,7 +348,7 @@ def main(win, width):
 				if random.random() < percentage:
 					spot.make_barrier()
 	# Number of robots
-	num_robots = 10
+	num_robots = 20
 	Robots = []
 	# make robots
 	for i in range(num_robots):
@@ -404,7 +401,9 @@ def main(win, width):
 									min_distance = distance
 									closest_robot = robot
 						if closest_robot != None:
+							# current_time = int(time.time() * 1000)
 							algorithm(lambda: draw(win, grid, ROWS, width), grid, grid[closest_robot.row][closest_robot.col], list(orders)[0], closest_robot, current_time)
+							# print("Time used: " + str(int(time.time() * 1000) - current_time))
 							# clear order from orders
 							orders.remove(list(orders)[0])
 					moving = True
@@ -420,7 +419,12 @@ def main(win, width):
 								pygame.display.update()
 							if robot.path != []:
 								moving = True
-
+					# Visualize the blocking of all the grid elements
+					# for row in grid:
+					# 	for spot in row:
+					# 		if spot.blocked[0] != 0:
+					# 			print("[" + str(spot.blocked[0]) + ", " + str(spot.blocked[1]) + "]")
+							
 				if event.key == pygame.K_c:
 					Robots = []
 					grid = make_grid(ROWS, width)
