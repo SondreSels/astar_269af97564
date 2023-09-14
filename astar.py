@@ -3,6 +3,13 @@ import math
 from queue import PriorityQueue
 import random
 import time
+from timeit import default_timer as timer
+
+VISUALIZE = False
+# Number of robots
+num_robots = 10
+# Percentage of barriers
+percentage = 0
 
 WIDTH = 800
 WIN = pygame.display.set_mode((WIDTH, WIDTH))
@@ -93,7 +100,7 @@ class Robot:
 			if i == len(self.path) - 1:
 				grid[self.path[i][0]][self.path[i][1]].blocked = [current, 99999999999]
 			else:
-				grid[self.path[i][0]][self.path[i][1]].blocked = [current, current + grid[self.path[i][0]][self.path[i][1]].speed]
+				grid[self.path[i][0]][self.path[i][1]].blocked = [current-500, current + grid[self.path[i][0]][self.path[i][1]].speed+500]
 			current += grid[self.path[i][0]][self.path[i][1]].speed
 	
 
@@ -253,6 +260,7 @@ def algorithm(draw, grid, start, end, robot, current_time):
 			reconstruct_path(came_from, end, draw, robot, grid)
 			end.make_end()
 			return True
+		start_time = timer()
 		for neighbor in current.neighbors:
 			# Find the direction between the current node and the neighbor
 			neighbor_direction = -1
@@ -276,7 +284,7 @@ def algorithm(draw, grid, start, end, robot, current_time):
 				speed = 500
 			temp_g_score = g_score[current] + speed
 			if temp_g_score > neighbor.blocked[0] and temp_g_score < neighbor.blocked[1]:
-				temp_g_score = neighbor.blocked[1] + 500
+				temp_g_score = neighbor.blocked[1] + 1000
 
 			if temp_g_score < g_score[neighbor]:
 				came_from[neighbor] = current
@@ -287,11 +295,14 @@ def algorithm(draw, grid, start, end, robot, current_time):
 					neighbor.speed = speed
 					open_set.put((f_score[neighbor], count, neighbor))
 					open_set_hash.add(neighbor)
-		# 			neighbor.make_open()
-		# 			draw()
-
-		# if current != start:
-		# 	current.make_closed()
+					if VISUALIZE:
+						neighbor.make_open()
+						draw()
+		end_time = timer()
+		print("Time used: " + str(end_time - start_time))
+		if VISUALIZE:
+			if current != start:
+				current.make_closed()
 
 	return False
 
@@ -339,16 +350,14 @@ def get_clicked_pos(pos, rows, width):
 
 def main(win, width):
 	grid = make_grid(ROWS, width)
-	# Percentage of barriers
-	percentage = 0
+	
 	# make barriers
 	for row in grid:
 		for spot in row:
 			if spot != grid[0][0] and spot != grid[ROWS-1][ROWS-1]:
 				if random.random() < percentage:
 					spot.make_barrier()
-	# Number of robots
-	num_robots = 20
+	
 	Robots = []
 	# make robots
 	for i in range(num_robots):
@@ -406,6 +415,12 @@ def main(win, width):
 							# print("Time used: " + str(int(time.time() * 1000) - current_time))
 							# clear order from orders
 							orders.remove(list(orders)[0])
+							# reset the open and closed sets
+							if VISUALIZE:
+								for row in grid:
+									for spot in row:
+										if spot.is_open() or spot.is_closed():
+											spot.reset()
 					moving = True
 					count = 0
 					while moving:
