@@ -5,11 +5,11 @@ import random
 import time
 from timeit import default_timer as timer
 
-VISUALIZE = False
+VISUALIZE = True
 # Number of robots
-num_robots = 10
+num_robots = 5
 # Percentage of barriers
-percentage = 0
+percentage = 0.05
 
 WIDTH = 800
 WIN = pygame.display.set_mode((WIDTH, WIDTH))
@@ -63,10 +63,17 @@ class Robot:
 		self.direction = -1
 		self.speed = 500
 		self.current_move_time = 0
+		self.time_used = 500
 
 	def move_spot(self, grid):
+		grid[self.row][self.col].reset()
+		self.row = self.path[0][0]
+		self.col = self.path[0][1]
+		self.path.pop(0)
+		grid[self.row][self.col].make_robot()
+		pygame.draw.rect(WIN, self.color, (self.x, self.y, self.width, self.width))
 		if self.path != []:
-			grid[self.row][self.col].reset()
+			self.time_used += grid[self.path[0][0]][self.path[0][1]].speed
 			# check if robot is moving in same direction
 			if self.direction == get_direction(grid[self.row][self.col], grid[self.path[0][0]][self.path[0][1]]):
 				# check if robot is at top speed
@@ -74,14 +81,15 @@ class Robot:
 					self.speed -= acceleration
 			else:
 				# robot is changing direction
+				self.current_move_time += FullTrackShiftMS
 				self.speed = 500
+			if grid[self.path[0][0]][self.path[0][1]].blocked != []:
+				for block in grid[self.path[0][0]][self.path[0][1]].blocked:
+					if self.time_used > block[0] and self.time_used < block[1]:
+						self.current_move_time = block[1] + 1000
+						self.time_used = block[1] + 1000
 			self.direction = get_direction(grid[self.row][self.col], grid[self.path[0][0]][self.path[0][1]])
-			self.row = self.path[0][0]
-			self.col = self.path[0][1]
-			self.path.pop(0)
-			grid[self.row][self.col].make_robot()
 			self.is_moving = True
-			pygame.draw.rect(WIN, self.color, (self.x, self.y, self.width, self.width))
 		else:
 			self.is_moving = False
 	
@@ -98,9 +106,9 @@ class Robot:
 		current = 0
 		for i in range(len(self.path)):
 			if i == len(self.path) - 1:
-				grid[self.path[i][0]][self.path[i][1]].blocked = [current, 99999999999]
+				grid[self.path[i][0]][self.path[i][1]].blocked.append([current, 99999999999])
 			else:
-				grid[self.path[i][0]][self.path[i][1]].blocked = [current-500, current + grid[self.path[i][0]][self.path[i][1]].speed+500]
+				grid[self.path[i][0]][self.path[i][1]].blocked.append([current-500, current + grid[self.path[i][0]][self.path[i][1]].speed+500])
 			current += grid[self.path[i][0]][self.path[i][1]].speed
 	
 
@@ -115,7 +123,7 @@ class Spot:
 		self.width = width
 		self.total_rows = total_rows
 		self.direction = -1
-		self.blocked = [0,0]
+		self.blocked = []
 		self.speed = 500
 
 	def get_pos(self):
@@ -216,6 +224,8 @@ def reconstruct_path(came_from, current, draw, robot, grid):
 		draw()
 	robot.assign_path(robot_path[::-1])
 	robot.update_blockage(grid)
+	# print the speeds of the robot path
+	
 
 
 def algorithm(draw, grid, start, end, robot, current_time):
@@ -260,7 +270,7 @@ def algorithm(draw, grid, start, end, robot, current_time):
 			reconstruct_path(came_from, end, draw, robot, grid)
 			end.make_end()
 			return True
-		start_time = timer()
+		#start_time = timer()
 		for neighbor in current.neighbors:
 			# Find the direction between the current node and the neighbor
 			neighbor_direction = -1
@@ -280,11 +290,14 @@ def algorithm(draw, grid, start, end, robot, current_time):
 			if neighbor_direction == direction or direction == -1:
 				if speed > top_speed:
 					speed -= acceleration
+				temp_g_score = g_score[current] + speed
 			else:
 				speed = 500
-			temp_g_score = g_score[current] + speed
-			if temp_g_score > neighbor.blocked[0] and temp_g_score < neighbor.blocked[1]:
-				temp_g_score = neighbor.blocked[1] + 1000
+				temp_g_score = g_score[current] + speed + FullTrackShiftMS
+			if neighbor.blocked != []:
+				for block in neighbor.blocked:
+					if temp_g_score > block[0] and temp_g_score < block[1]:
+						temp_g_score = block[1] + 1000
 
 			if temp_g_score < g_score[neighbor]:
 				came_from[neighbor] = current
@@ -298,8 +311,8 @@ def algorithm(draw, grid, start, end, robot, current_time):
 					if VISUALIZE:
 						neighbor.make_open()
 						draw()
-		end_time = timer()
-		print("Time used: " + str(end_time - start_time))
+		# end_time = timer()
+		# print("Time used: " + str(end_time - start_time))
 		if VISUALIZE:
 			if current != start:
 				current.make_closed()
@@ -428,12 +441,12 @@ def main(win, width):
 						draw(win, grid, ROWS, width)
 						current_time = int(time.time() * 1000)
 						for robot in Robots:
-							if current_time - robot.current_move_time >= robot.speed:
-								robot.move_spot(grid)
-								robot.current_move_time = current_time
-								pygame.display.update()
 							if robot.path != []:
 								moving = True
+								if current_time - robot.current_move_time >= robot.speed:
+									robot.current_move_time = current_time
+									robot.move_spot(grid)
+									pygame.display.update()
 					# Visualize the blocking of all the grid elements
 					# for row in grid:
 					# 	for spot in row:
