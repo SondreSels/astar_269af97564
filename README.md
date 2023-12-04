@@ -1,4 +1,3 @@
-# astar_269af97564
 
 # Example where new current node is not one of the previous currents neighbors.
 
